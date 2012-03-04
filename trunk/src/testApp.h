@@ -7,6 +7,7 @@
 #include "ofMain.h"
 #include "ofxOpenNI.h"
 #include <deque>
+#include <time.h>
 
 class testApp : public ofBaseApp{
 
@@ -44,6 +45,7 @@ class testApp : public ofBaseApp{
 		bool inButton(float x, float y, float sx, float sy, float sw, float sh);
 		void updateTrails(deque <ofPoint> &trail, float x, float y, float z);
 		void drawTrails(int color, int outlineOffset);
+		std::string getAuxiliaryExecutablePath(const std::string& executableName);
 		string deviceId;
 		ofxOpenNIContext context;
 		ofxDepthGenerator depth;

@@ -3,7 +3,7 @@
 
 #define PORTOUT 12346
 #define PORTIN	12345
-#define HOST "128.237.118.192"
+#define HOST "192.168.1.2"
 
 ofxOscReceiver	receiver;
 ofxOscSender	sender;
@@ -13,7 +13,7 @@ ofSoundPlayer shutterSound;
 int fontColor = 0x000000;
 
 bool showExtraFeeds = false;
-bool showDebug = false;
+bool showDepth = false;
 bool fontHasTop = true;
 bool fontHasBottom = true;
 bool fontHasDots = true;
@@ -26,6 +26,9 @@ bool nameIsSet = false;
 bool emailIsSet = false;
 bool mouseMode = false;
 bool rightHand = true;
+bool isFullScreen = false;
+bool settingsChanged = true;
+bool debugMode = false;
 
 struct letterform {
 	string filename;
@@ -54,7 +57,7 @@ ofTrueTypeFont hudFont;
 
 ofImage poseImage;
 
-int timePerLetter = 3000;
+int timePerLetter = 500;
 string letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 //vector <string> lettersUnicode;
 int currentLetter = 0;
@@ -124,7 +127,7 @@ void testApp::setup(){
 	timerFont.loadFont("Inconsolata.otf",100);
 	letterFont.loadFont("Inconsolata.otf",200);
 	inputFont.loadFont("Inconsolata.otf",24);
-	hudFont.loadFont("FFF Harmony",6);
+	hudFont.loadFont("Inconsolata.otf",10);
 	setupTrails();
 	setupControls();
 }
@@ -482,7 +485,7 @@ void testApp::updateRemote() {
 		if (cmd.find("/remote/")!=string::npos) {
 			string btn = m.getAddress().substr(8);
 			int val = floor(m.getArgAsFloat( 0 ));
-			if (btn == "debug") {
+			if (btn == "depth") {
 				keyReleased('q');
 			} else if (btn == "start") {
 				keyReleased('s');
@@ -500,12 +503,16 @@ void testApp::updateRemote() {
 				keyReleased('l');
 			} else if (btn == "outline") {
 				keyReleased('o');
+			} else if (btn == "fullscreen") {
+				keyReleased('f');
 			} else if (btn == "width") {
 				lineWidth = val * 2;
 			} else if (btn == "send" && val == 0) {
 				isSending = !isSending;
+			} else if (btn == "depth") {
+				showDepth = !showDepth;
 			} else if (btn == "debug") {
-				showDebug = !showDebug;
+				debugMode = !debugMode;
 			} else if (btn == "prev" && val == 0) {
 				keyReleased(OF_KEY_LEFT);
 			} else if (btn == "next" && val == 0) {
@@ -513,48 +520,59 @@ void testApp::updateRemote() {
 			}
 		}
 	}
-	ofxOscBundle b;
-	ofxOscMessage m1;
-	m1.setAddress( "/remote/trails" );
-	m1.addFloatArg( fontHasTrails ? 1 : 0 );
-	b.addMessage(m1);
-	ofxOscMessage m2;
-	m2.setAddress( "/remote/top" );
-	m2.addFloatArg( fontHasTop ? 1 : 0 );
-	b.addMessage(m2);
-	ofxOscMessage m3;
-	m3.setAddress( "/remote/bottom" );
-	m3.addFloatArg( fontHasBottom ? 1 : 0 );
-	b.addMessage(m3);
-	ofxOscMessage m4;
-	m4.setAddress( "/remote/lines" );
-	m4.addFloatArg( fontHasLines ? 1 : 0 );
-	b.addMessage(m4);
-	ofxOscMessage m5;
-	m5.setAddress( "/remote/dots" );
-	m5.addFloatArg( fontHasDots ? 1 : 0 );
-	b.addMessage(m5);
-	ofxOscMessage m6;
-	m6.setAddress( "/remote/letter" );
-	m6.addStringArg(letters.substr(currentLetter,1));
-	b.addMessage(m6);
-	ofxOscMessage m7;
-	m7.setAddress( "/remote/width" );
-	m7.addFloatArg(lineWidth/2);
-	b.addMessage(m7);
-	ofxOscMessage m8;
-	m8.setAddress( "/remote/debug" );
-	m8.addFloatArg( showDebug ? 1 : 0 );
-	b.addMessage(m8);
-	ofxOscMessage m9;
-	m9.setAddress( "/remote/start" );
-	m9.addFloatArg( hasStarted ? 1 : 0 );
-	b.addMessage(m9);
-	ofxOscMessage m10;
-	m10.setAddress( "/remote/outline" );
-	m10.addFloatArg( fontIsOutline ? 1 : 0 );
-	b.addMessage(m10);
-	sender.sendBundle( b );
+	if (settingsChanged) {
+		settingsChanged = false;
+		ofxOscBundle b;
+		ofxOscMessage m1;
+		m1.setAddress( "/remote/trails" );
+		m1.addFloatArg( fontHasTrails ? 1 : 0 );
+		b.addMessage(m1);
+		ofxOscMessage m2;
+		m2.setAddress( "/remote/top" );
+		m2.addFloatArg( fontHasTop ? 1 : 0 );
+		b.addMessage(m2);
+		ofxOscMessage m3;
+		m3.setAddress( "/remote/bottom" );
+		m3.addFloatArg( fontHasBottom ? 1 : 0 );
+		b.addMessage(m3);
+		ofxOscMessage m4;
+		m4.setAddress( "/remote/lines" );
+		m4.addFloatArg( fontHasLines ? 1 : 0 );
+		b.addMessage(m4);
+		ofxOscMessage m5;
+		m5.setAddress( "/remote/dots" );
+		m5.addFloatArg( fontHasDots ? 1 : 0 );
+		b.addMessage(m5);
+		ofxOscMessage m6;
+		m6.setAddress( "/remote/letter" );
+		m6.addStringArg(letters.substr(currentLetter,1));
+		b.addMessage(m6);
+		ofxOscMessage m7;
+		m7.setAddress( "/remote/width" );
+		m7.addFloatArg(lineWidth/2);
+		b.addMessage(m7);
+		ofxOscMessage m8;
+		m8.setAddress( "/remote/depth" );
+		m8.addFloatArg( showDepth ? 1 : 0 );
+		b.addMessage(m8);
+		ofxOscMessage m9;
+		m9.setAddress( "/remote/start" );
+		m9.addFloatArg( hasStarted ? 1 : 0 );
+		b.addMessage(m9);
+		ofxOscMessage m10;
+		m10.setAddress( "/remote/outline" );
+		m10.addFloatArg( fontIsOutline ? 1 : 0 );
+		b.addMessage(m10);
+		ofxOscMessage m11;
+		m11.setAddress( "/remote/fullscreen" );
+		m11.addFloatArg( isFullScreen ? 1 : 0 );
+		b.addMessage(m11);
+		ofxOscMessage m12;
+		m12.setAddress( "/remote/debug" );
+		m12.addFloatArg( debugMode ? 1 : 0 );
+		b.addMessage(m12);
+		sender.sendBundle( b );
+	}
 }
 
 void testApp::updateInterface() {
@@ -617,7 +635,7 @@ void testApp::toggleControl(int i) {
 			fontHasTrails = !fontHasTrails;
 			break;
 		case 'q':
-			showDebug = !showDebug;
+			showDepth = !showDepth;
 			break;
 		case 0:
 			hasStarted = !hasStarted;
@@ -700,7 +718,7 @@ void testApp::updateTrails(deque <ofPoint> &trail, float x, float y, float z){
 //--------------------------------------------------------------
 void testApp::draw(){
 	if (!isSending) {
-		if (showDebug) {
+		if (showDepth) {
 			ofSetRectMode(OF_RECTMODE_CORNER);
 			depth.draw(previewX,previewY,previewWidth,previewHeight);
 			ofSetRectMode(OF_RECTMODE_CENTER);
@@ -708,6 +726,34 @@ void testApp::draw(){
 		
 		// draw the user
 		drawUsers();
+		
+		// HELP
+		ofSetRectMode(OF_RECTMODE_CORNER);
+		ofSetColor(fontColor);
+		hudFont.drawString("S     : capture shape",10, 15);
+		hudFont.drawString("L     : show/hide lines",10, 30);
+		hudFont.drawString("D     : show/hide dots",10, 45);
+		hudFont.drawString("<- -> : change letter",10, 60);
+		hudFont.drawString("F     : fullscreen on/off",10, 75);
+		hudFont.drawString("G     : generate font",10, 90);
+		hudFont.drawString("Esc   : quit",10, 105);
+		string debugging = "NO";
+		if (debugMode) debugging = "YES";
+		hudFont.drawString("Debug : " + debugging,10, 120);
+		
+		time_t rawtime;
+		rawtime = time (NULL);
+		stringstream st;
+		st << rawtime;
+		//hudFont.drawString("debug: " + st.str(),10, 120);
+		
+		inputFont.drawString("draw:", 810, 465);
+		ofSetColor(0xcccccc);
+		ofRect(800, 700, 224, 20);
+		ofSetRectMode(OF_RECTMODE_CENTER);
+		ofSetColor(0x000000);
+		letterFont.drawString(letters.substr(currentLetter,1), 800, 650);
+		// /HELP
 		
 		// the game/app itself
 		if (hasStarted) {
@@ -720,6 +766,8 @@ void testApp::draw(){
 				captureLetterform();
 				// go to the next letter
 				hasStarted = false;
+				settingsChanged = true;
+				// old stuff, when letters skipped automatically
 				if (false) {
 					if (currentLetter<letters.size()-1) {
 						currentLetter++;
@@ -736,7 +784,7 @@ void testApp::draw(){
 				ofRect(800, 468, 224, 300);
 				ofSetColor(fontColor);
 				timerFont.drawString(ofToString(round((timePerLetter-elapsed)/1000),0), 810, 440);
-				inputFont.drawString("draw:", 810, 495);
+				//inputFont.drawString("draw:", 810, 465);
 				ofSetColor(0xcccccc);
 				if (elapsed>timePerLetter-500) ofSetColor(0xff0000);
 				ofRect(800, 700, 224, 20);
@@ -744,7 +792,7 @@ void testApp::draw(){
 				ofRect(800, 700, ofMap(timePerLetter-elapsed, 0, timePerLetter, 0, 224), 20);
 				ofSetRectMode(OF_RECTMODE_CENTER);
 				// show the letter
-				letterFont.drawString(letters.substr(currentLetter,1), 800, 670);
+				//letterFont.drawString(letters.substr(currentLetter,1), 800, 650);
 			}
 		}
 		
@@ -1045,7 +1093,7 @@ void testApp::drawDot(ofxLimb &limb) {
 	/**
 	ofCircle(ofMap(limb.begin.x,0,1024,previewX,previewX+previewWidth), ofMap(limb.begin.y,0,768,previewY,previewY+previewHeight), radius+(maxDot+minDot)-ABS(ofMap(limb.begin.z, 0, 2048, minDot, maxDot, true)));
 	ofCircle(ofMap(limb.end.x,0,1024,previewX,previewX+previewWidth), ofMap(limb.end.y,0,768,previewY,previewY+previewHeight), radius+(maxDot+minDot)-ABS(ofMap(limb.end.z, 0, 2048, minDot, maxDot, true)));
-	/**/
+	**/
 	
 	ofCircle(ofMap(limb.begin.x, 0, 640, 0, 1024, true), ofMap(limb.begin.y, 0, 480, 0, 768, true), radius+(maxDot+minDot)-ABS(ofMap(limb.begin.z, 0, 2048, minDot, maxDot, true)));
 	ofCircle(ofMap(limb.end.x, 0, 640, 0, 1024, true), ofMap(limb.end.y, 0, 480, 0, 768, true), radius+(maxDot+minDot)-ABS(ofMap(limb.end.z, 0, 2048, minDot, maxDot, true)));
@@ -1054,7 +1102,7 @@ void testApp::drawDot(ofxLimb &limb) {
 void testApp::showTextBox(int type) {
 	ofSetColor(fontColor);
 	int startCursor = 180;
-	inputFont.drawString("share your font!", xini, yini+20);
+	inputFont.drawString("generate your font!", xini, yini+20);
 	if (type == 1) {
 		// name
 		inputFont.drawString("font name:", xini, yini+60);
@@ -1074,7 +1122,8 @@ void testApp::createFont() {
 		string commanddir = basedir + "fontforgecommand.pe";
 		string cmd = "";
 		ofstream outfile (commanddir.c_str());
-		outfile << "#!/opt/local/bin/fontforge\ni=1\nglyph = \"\"\nNew()\nSetFontNames(\"" + userName + "\",\"" + userName + "\",\"" + userName + "\",\"\",\"2011 " + userName + " " + userEmail + " and mauricio giraldo www.mauriciogiraldo.com Creative Commons Attribution-ShareAlike 3.0 Unported License. http://creativecommons.org/licenses/by-sa/3.0/\",\"1.0\")\nwhile ( i < $argc )\nbasepath = $argv[i]:r\nglyph = Strsub(basepath,Strrstr(basepath,\"/\")+1)\nSelect(glyph)\nImport($argv[i])\nAutoHint()\nAutoTrace()\ni = i + 1\nendloop\nGenerate(\"" + basedir + bodyFontFile + ".ttf" + "\")";
+		outfile << "#!/opt/local/bin/fontforge\n";
+		outfile << "i=1\nglyph = \"\"\nNew()\nSetFontNames(\"" + userName + "\",\"" + userName + "\",\"" + userName + "\",\"\",\"2011 " + userName + " " + userEmail + " and mauricio giraldo www.mauriciogiraldo.com Creative Commons Attribution-ShareAlike 3.0 Unported License. http://creativecommons.org/licenses/by-sa/3.0/\",\"1.0\")\nwhile ( i < $argc )\nbasepath = $argv[i]:r\nglyph = Strsub(basepath,Strrstr(basepath,\"/\")+1)\nSelect(glyph)\nImport($argv[i])\nAutoHint()\nAutoTrace()\ni = i + 1\nendloop\nGenerate(\"" + basedir + userName + "font.ttf" + "\")";
 		outfile.close();
 		// make executable
 		cmd = "chmod +x " + commanddir;
@@ -1082,12 +1131,23 @@ void testApp::createFont() {
 		// execute command
 		cmd = commanddir + " " + basedir + "*.bmp";
 		system(cmd.c_str());
-		// erase command file and bmps
-		cmd = "rm " + commanddir;
-		system(cmd.c_str());
+		if (!debugMode) {
+			// erase command file and bmps
+			cmd = "rm " + commanddir;
+			system(cmd.c_str());
+		}
 		// send email
-		cmd = "/usr/bin/php /Applications/MAMP/htdocs/mga/lab/bodytype/sendfont.php " + userName + " " + userEmail;
+		// cmd = "/usr/bin/php /Applications/MAMP/htdocs/mga/lab/bodytype/sendfont.php " + userName + " " + userEmail;
+		// create ZIP
+		cmd = "zip -j " + basedir + "font_" + userEmail + ".zip " + basedir + "*.bmp " + basedir + userName + "font.ttf";
 		system(cmd.c_str());
+		if (!debugMode) {
+			// clean up the mess
+			cmd = "rm " + basedir + "*.bmp";
+			system(cmd.c_str());
+			cmd = "rm " + basedir + "*.ttf";
+			system(cmd.c_str());
+		}
 	}
 	// zip
 //	time_t t;
@@ -1119,13 +1179,18 @@ void testApp::captureLetterform() {
 	img.saveImage("output/" + filename);
 	string cmd;
     string basedir = ofToDataPath("output/", true);
-    cmd = "/opt/local/bin/convert " + basedir + prefix + ".bmp " + basedir + prefix + ".png";
+	//string convertPath = getAuxiliaryExecutablePath("convert");
+	string convertPath = "/opt/local/bin/convert";
+    cmd = convertPath + " " + basedir + prefix + ".bmp -colorspace Gray -colors 2 " + basedir + prefix + ".png";
     system(cmd.c_str());
-    cmd = "/opt/local/bin/convert " + basedir + prefix + ".png " + basedir + prefix + ".bmp";
+	/**/
+    cmd = convertPath + " " + basedir + prefix + ".png " + basedir + prefix + ".bmp";
     system(cmd.c_str());
     cmd = "rm " + basedir + prefix + ".png";
     system(cmd.c_str());
-    img.clear();
+	/**/
+	img.clear();
+	// vintage stuff to show all the letters a user has created
     letterform theLetter;
     theLetter.xpos = xini + (col*(letterWidth/maxCols + letterSpace));
     theLetter.ypos = yini + (row*(letterHeight/maxCols + letterSpace));
@@ -1185,11 +1250,21 @@ int spc_email_isvalid(const char *address) {
 //--------------------------------------------------------------
 void testApp::keyReleased(int key){
 	if (!isSending) {
+		if (key == 'z' || key == 'f' || key == 'p' || key == 'd' || key == 't' || key == 'b' || key == 'l' || key == 'w'
+			 || key == 'q' || key == 's' || key == 'o' || key == 'r' || key == '1' || key == '2' || key == '3' || key == '4'
+			 || key == '5' || key == '6' || key == '7' || key == '8' || key == '9' || key == '0' || key == OF_KEY_LEFT 
+			 || key == OF_KEY_RIGHT) {
+			settingsChanged = true;
+		}
 		switch (key) {
 			case 'f':
 				if (!isSending) ofToggleFullscreen();
+				isFullScreen = !isFullScreen;
 				break;
-			case 'p':
+			case 'z':
+				debugMode = !debugMode;
+				break;
+			case 'g':
 				isSending = !isSending;
 				break;
 			case 'd':
@@ -1208,7 +1283,7 @@ void testApp::keyReleased(int key){
 				fontHasTrails = !fontHasTrails;
 				break;
 			case 'q':
-				showDebug = !showDebug;
+				showDepth = !showDepth;
 				break;
 			case 's':
 				hasStarted = !hasStarted;
@@ -1325,3 +1400,16 @@ void testApp::windowResized(int w, int h){
 
 }
 
+////////
+
+std::string testApp::getAuxiliaryExecutablePath(const std::string& executableName) {
+	CFStringRef executableNameString = CFStringCreateWithCString(kCFAllocatorDefault, executableName.c_str(), kCFStringEncodingUTF8);
+	CFURLRef convertURL = CFBundleCopyAuxiliaryExecutableURL(CFBundleGetMainBundle(), executableNameString);
+	assert(convertURL != NULL);
+	std::vector<char> stringBuffer(1024 + 1, ' ');	// Include space for zero terminator
+	Boolean success = CFURLGetFileSystemRepresentation(convertURL, true, reinterpret_cast<UInt8*>(&stringBuffer[0]), stringBuffer.size());
+	assert(success);
+	CFRelease(executableNameString);
+	CFRelease(convertURL);
+	return std::string(&stringBuffer[0]);
+}
